@@ -109,7 +109,7 @@ if __name__ == "__main__":
     w = -1.0
     wa = 0.0
 
-    derived_parameters = np.loadtxt("../output/derived_params.txt")
+    derived_parameters = np.loadtxt("../benchmark/derived_params.txt")
     H_z = derived_parameters[12+2::4]
     DA_z = derived_parameters[12+3::4]
     print("H(z)", H_z)
@@ -128,22 +128,22 @@ if __name__ == "__main__":
     local_lag_g2 = True 
     local_lag_g3 = False
 
-    window = np.loadtxt("../output/window.txt")
-    bands = np.loadtxt("../output/bands.txt")
+    window = np.loadtxt("../benchmark/window.txt")
+    bands = np.loadtxt("../benchmark/bands.txt")
     
-    z = np.loadtxt("../output/z_p_k.txt")
-    log_k = np.loadtxt("../output/log_k_h.txt")
-    Pk = np.loadtxt("../output/log_p_k.txt")
+    z = np.loadtxt("../benchmark/z_p_k.txt")
+    log_k = np.loadtxt("../benchmark/log_k_h.txt")
+    Pk = np.loadtxt("../benchmark/log_p_k.txt")
 
     print(f"n_z: {len(z)}, n_k: {len(log_k)}, shape(Pk): {Pk.shape}")
     print(z)
     print(log_k[:5])
     print(Pk[:,0])
 
-    growth_z = np.loadtxt("../output/growth.txt")
-    sigma8_z = np.loadtxt("../output/sigma8.txt")
+    growth_z = np.loadtxt("../benchmark/growth.txt")
+    sigma8_z = np.loadtxt("../benchmark/sigma8.txt")
 
-    data_params = np.loadtxt("../output/data_params.txt")
+    data_params = np.loadtxt("../benchmark/data_params.txt")
 
     mod = BiasModule()
     vtheo, vthep_convolved = mod.compute_wedges(
@@ -157,5 +157,5 @@ if __name__ == "__main__":
                              growth_z, sigma8_z, 
                              data_params)
 
-    np.savetxt("vtheo_python.txt", vtheo)
-    np.savetxt("vtheo_convolved_python.txt", vthep_convolved)
+    np.savetxt("../output/vtheo_python.txt", vtheo)
+    np.savetxt("../output/vtheo_convolved_python.txt", vthep_convolved)
