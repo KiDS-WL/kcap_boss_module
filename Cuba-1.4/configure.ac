@@ -40,10 +40,11 @@ AC_ARG_WITH(maxcomp,
   [MAXCOMP=$withval])
 
 AC_MSG_CHECKING([for variable-size arrays])
-AC_COMPILE_IFELSE([AC_LANG_SOURCE(,[[
-	void test(int n)
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+  void test(int n)
 	{
-	  char s[n];
+    typedef struct {int bar[n];} foo;
+	  foo f;
 	}
   ]])],
   [AC_MSG_RESULT([yes])],
