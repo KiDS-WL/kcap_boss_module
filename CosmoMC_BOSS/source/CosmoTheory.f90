@@ -181,7 +181,8 @@
     integer i,j
 
     if (first .and. new_chains) then
-        Write(F%Unit) CosmoSettings%TCosmoTheoryParams
+        ! Write(F%Unit) CosmoSettings%TCosmoTheoryParams
+        write(*,*) "Tried to write params class to file, which has been disabled for compiler compatibility"
         if (CosmoSettings%use_LSS) call F%WriteSizedArray(CosmoSettings%power_redshifts)
         if (CosmoSettings%use_CMB) call F%WriteSizedArray(CosmoSettings%cl_lmax)
         ArraySizes(1)=size(valArray)
@@ -251,7 +252,8 @@
     integer i,j
 
     if (first) then
-        read(F%Unit) FileSettings%TCosmoTheoryParams
+        !read(F%Unit) FileSettings%TCosmoTheoryParams
+        write(*,*) "Tried to read params class from file, which has been disabled for compiler compatibility"
         if (FileSettings%use_LSS) call F%ReadSizedArray(FileSettings%power_redshifts)
         if (FileSettings%use_CMB) call F%ReadSizedArray(FileSettings%cl_lmax)
         call F%ReadSizedArray(FileSettings%ArraySizes) !not used

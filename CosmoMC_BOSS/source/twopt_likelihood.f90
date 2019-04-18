@@ -99,7 +99,8 @@
       class(CMBParams),intent(in)                :: CMB     !cosmological parameters
       class(TCosmoTheoryPredictions), target     :: Theory  !power spectrum and derived parameters (H and D_A)
       real(mcp),dimension(:), intent(in)         :: DataParams  !model parameters order the same as in paramnames
-      real(kind=mcp)                             :: dm , hub, ee, dm_rat, hub_rat, z_index_out
+      real(kind=mcp)                             :: dm , hub, ee, dm_rat, hub_rat
+      integer                                    :: z_index_out
       real(mcp)                                  :: om_z, f_growth     ! Omega_m(z), f(z)=d ln(D)/d ln(a)
       if(.not. allocated(Theory%MPK))then
          write(*,*) 'ERROR: Your Theory%MPK derived type is not initialized. Make sure you are'
@@ -152,7 +153,7 @@
          A_fast = A_fast*(Dgrowth_gamma(model%redshift,DataParams(6))/Dgrowth_gamma(model%redshift,gamma_gr(CMB%w)))**2 
          write(*,*)'A_fast',A_fast
       end if
-      shot_noise = DataParams(9)
+      shot_noise = 0 !DataParams(9)
     end subroutine fill_model_par
 
     function gamma_gr(w)
