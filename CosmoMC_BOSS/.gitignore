@@ -1,0 +1,12 @@
+*.o
+*.mod
+source/Release
+source/Debug
+
+camb
+data
+python
+paramnames
+inifiles
+planck_covmats
+docs
