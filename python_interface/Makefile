@@ -1,11 +1,12 @@
-
+ifeq (${FC},)
 FC = gfortran
+endif
 
 FFLAGS =  -fPIC -cpp -fopenmp -O3 -ffree-line-length-none -std=f2008
 DEBUGFLAGS = -g -O0 -fcheck=all -fbacktrace -cpp -fdec -fopenmp -ffree-line-length-none
 #add -fpe0 to check for floating point errors (think lowLike also throws these harmlessly)
 #MODOUT = -J$(OUTPUT_DIR)
-LAPACKL = -framework Accelerate
+LAPACKL = ${LAPACK_LINK}
 CUBALIB = ../Cuba-1.4/libcuba.a
 
 LDFLAGS = ${CUBALIB} ${LAPACKL}
