@@ -28,7 +28,8 @@ class BiasModule:
         else:
             return getattr(self.lib, f"__{self.module_name}_MOD_{name}")
 
-    def compute_wedges(self, h, omdm, omb, omv, omk, omnuh2, nnu, w, wa, 
+    def compute_wedges(self, h, omdm, omb, omv, omk, omnuh2, nnu, w, wa,
+                             b1, b2, gamma2, gamma3, a_vir, gamma,
                              H_z, DA_z, 
                              twopt_type, num_ell, num_points_use, num_bands_use, z_index, zm, om_fid, h0_fid, 
                              use_growth, local_lag_g2, local_lag_g3, 
@@ -36,7 +37,6 @@ class BiasModule:
                              bands, 
                              z, log_k, Pk, 
                              growth_z, sigma8_z, 
-                             data_params,
                              verbose=True):
         f = self.get_function("compute_wedges")
         f.restype = None
@@ -49,6 +49,12 @@ class BiasModule:
                       ct.POINTER(ct.c_double),     # nnu
                       ct.POINTER(ct.c_double),     # w
                       ct.POINTER(ct.c_double),     # wa
+                      ct.POINTER(ct.c_double),     # b1
+                      ct.POINTER(ct.c_double),     # b2
+                      ct.POINTER(ct.c_double),     # gamma2
+                      ct.POINTER(ct.c_double),     # gamma3
+                      ct.POINTER(ct.c_double),     # a_vir
+                      ct.POINTER(ct.c_double),     # gamma
                       *array_ctype(ndim=1, dtype=np.float64), # H_z
                       *array_ctype(ndim=1, dtype=np.float64), # DA_z
                       ct.POINTER(ct.c_int),        # twopt_type
@@ -69,7 +75,6 @@ class BiasModule:
                       *array_ctype(ndim=2, dtype=np.float64), # Pk
                       *array_ctype(ndim=1, dtype=np.float64), # growth_z
                       *array_ctype(ndim=1, dtype=np.float64), # sigma8_z
-                      *array_ctype(ndim=1, dtype=np.float64), # data_params
                       *array_ctype(ndim=1, dtype=np.float64), # vtheo
                       *array_ctype(ndim=1, dtype=np.float64), # vtheo_convolved
                       ct.POINTER(ct.c_int),        # verbose
@@ -79,6 +84,7 @@ class BiasModule:
 
         f(ct.c_double(h), ct.c_double(omdm), ct.c_double(omb), ct.c_double(omv), ct.c_double(omk),
           ct.c_double(omnuh2), ct.c_double(nnu), ct.c_double(w), ct.c_double(wa),
+          ct.c_double(b1), ct.c_double(b2), ct.c_double(gamma2), ct.c_double(gamma3), ct.c_double(a_vir), ct.c_double(gamma),
           *array_arg(np.asfortranarray(H_z)), *array_arg(np.asfortranarray(DA_z)),
           ct.c_int(twopt_type), ct.c_int(num_ell), ct.c_int(num_points_use), ct.c_int(num_bands_use), ct.c_int(z_index), 
           ct.c_double(zm), ct.c_double(om_fid), ct.c_double(h0_fid),
@@ -90,7 +96,6 @@ class BiasModule:
           *array_arg(np.asfortranarray(Pk)),
           *array_arg(growth_z),
           *array_arg(sigma8_z),
-          *array_arg(data_params),
           *array_arg(vtheo),
           *array_arg(vtheo_convolved),
           ct.c_int(verbose)
@@ -108,6 +113,13 @@ if __name__ == "__main__":
     nnu = 3.046
     w = -1.0
     wa = 0.0
+
+    b1 = 2.069093
+    b2 = -0.08266389
+    gamma2 = 1.0
+    gamma3 = 1.049944
+    a_vir = 3.414406
+    gamma = 0.47
 
     derived_parameters = np.loadtxt("../benchmark/derived_params.txt")
     H_z = derived_parameters[12+2::4]
@@ -143,19 +155,17 @@ if __name__ == "__main__":
     growth_z = np.loadtxt("../benchmark/growth.txt")
     sigma8_z = np.loadtxt("../benchmark/sigma8.txt")
 
-    data_params = np.loadtxt("../benchmark/data_params.txt")
-
     mod = BiasModule()
     vtheo, vthep_convolved = mod.compute_wedges(
-                             h, omdm, omb, omv, omk, omnuh2, nnu, w, wa, 
+                             h, omdm, omb, omv, omk, omnuh2, nnu, w, wa,
+                             b1, b2, gamma2, gamma3, a_vir, gamma,
                              H_z, DA_z, 
                              twopt_type, num_ell, num_points_use, num_bands_use, z_index, zm, om_fid, h0_fid, 
                              use_growth, local_lag_g2, local_lag_g3,
                              window, 
                              bands, 
                              z, log_k, Pk, 
-                             growth_z, sigma8_z, 
-                             data_params)
+                             growth_z, sigma8_z)
 
     np.savetxt("../output/vtheo_python.txt", vtheo)
     np.savetxt("../output/vtheo_convolved_python.txt", vthep_convolved)

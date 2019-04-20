@@ -19,10 +19,38 @@ def setup(options):
     config["window"] = np.loadtxt(window_file)
     config["bands"] = np.loadtxt(bands_file)
 
+    config["verbose"] = options.get_bool(option_section, "verbose", False)
+
+    try:
+        bands_range = options[option_section, "bands_range"]
+    except errors.BlockNameNotFound:
+        bands_range = [20, 160]
+
+    try:
+        points_range = options[option_section, "points_range"]
+    except errors.BlockNameNotFound:
+        points_range = [4, 32]
+    
+    n_points, n_bands = config["window"].shape
+    
+    cut_points_idx = list(range(points_range[0])) + list(range(points_range[1], n_points))
+    cut_bands_idx = list(range(bands_range[0])) + list(range(bands_range[1], n_bands))
+
+    if config["verbose"]:
+        print("Cutting bands", cut_bands_idx)
+        print("Cutting points", cut_points_idx)
+    if len(cut_points_idx) > 0:
+        config["window"] = np.delete(config["window"], cut_points_idx, axis=0)
+    if len(cut_bands_idx) > 0:
+        config["bands"] = np.delete(config["bands"], cut_bands_idx)
+        config["window"] = np.delete(config["window"], cut_bands_idx, axis=1)
+
+    config["output_section"] = options.get_string(option_section, "output_section", "xi_wedges")
+
     config["twopt_type"] = 4
     config["num_ell"] = 3
-    config["num_points_use"] = 28
-    config["num_bands_use"] = 140
+    config["num_points_use"] = config["window"].shape[0]
+    config["num_bands_use"] = config["window"].shape[1]
     config["z_index"] = 4
     config["zm"] = 0.61
     config["om_fid"] = 0.31
@@ -32,13 +60,15 @@ def setup(options):
     config["local_lag_g2"] = True
     config["local_lag_g3"] = False
 
-    config["derived_parameters"] = np.loadtxt(os.path.join(here, "../output/derived_params.txt"))
-    config["data_parameters"] = np.loadtxt(os.path.join(here, "../output/data_params.txt"))
+    # config["derived_parameters"] = np.loadtxt(os.path.join(here, "../output/derived_params.txt"))
+    # config["data_parameters"] = np.loadtxt(os.path.join(here, "../output/data_params.txt"))
 
-    config["z_pk"] = np.loadtxt(os.path.join(here, "../output/z_p_k.txt"))
-    config["log_k_pk"] = np.loadtxt(os.path.join(here, "../output/log_k_h.txt"))
-    config["log_pk"] = np.loadtxt(os.path.join(here, "../output/log_p_k.txt"))
+    # config["z_pk"] = np.loadtxt(os.path.join(here, "../output/z_p_k.txt"))
+    # config["log_k_pk"] = np.loadtxt(os.path.join(here, "../output/log_k_h.txt"))
+    # config["log_pk"] = np.loadtxt(os.path.join(here, "../output/log_p_k.txt"))
 
+    # if config["verbose"]:
+    #     print(config)
     return config
 
 def execute(block, config):
@@ -96,8 +126,20 @@ def execute(block, config):
     # growth = scipy.interpolate.InterpolatedUnivariateSpline(z_growth, growth)(z)
     # z_growth = z
 
+    # Bias parameters
+    b1 = block["bias_parameters", "b1"]
+    b2 = block["bias_parameters", "b2"]
+    gamma2 = block["bias_parameters", "gamma2"]
+    gamma3 = block["bias_parameters", "gamma3"]
+    a_vir = block["bias_parameters", "a_vir"]
+    if config["use_growth"]:
+        gamma = block["bias_parameters", "gamma"]
+    else:
+        gamma = 0.0
+
     vtheo, vtheo_convolved = config["module"].compute_wedges(
                              h, omdm, omb, omv, omk, omnuh2, nnu, w, wa, 
+                             b1, b2, gamma2, gamma3, a_vir, gamma,
                              H_z, DA_z,
                              config["twopt_type"], config["num_ell"], 
                              config["num_points_use"], config["num_bands_use"], 
@@ -107,17 +149,17 @@ def execute(block, config):
                              config["bands"], 
                              z, log_k_h, log_Pk.T,
                              growth, sigma8,
-                             config["data_parameters"],
-                             verbose=True)
+                             verbose=config["verbose"])
 
-    n = len(config["bands"])
+    n = len(vtheo)//config["num_ell"]
     vtheo = np.array([vtheo[i*n:(i+1)*n] for i in range(config["num_ell"])])
-    n = config["num_points_use"]
+    n = len(vtheo_convolved)//config["num_ell"]
     vtheo_convolved = np.array([vtheo_convolved[i*n:(i+1)*n] for i in range(config["num_ell"])])
 
-    block["wedges", "vtheo"] = vtheo
-    block["wedges", "bands"] = config["bands"]
-    block["wedges", "vtheo_convolved"] = vtheo_convolved
+    block[config["output_section"], "n_wedge"] = config["num_ell"]
+    block[config["output_section"], "vtheo"] = vtheo
+    block[config["output_section"], "bands"] = config["bands"]
+    block[config["output_section"], "vtheo_convolved"] = vtheo_convolved
 
     return 0
 

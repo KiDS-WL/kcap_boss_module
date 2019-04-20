@@ -13,6 +13,7 @@ module bias_module
 
     contains
         subroutine compute_wedges(h, omdm, omb, omv, omk, omnuh2, nnu, w, wa, & !CMB params
+                                  b1, b2, gamma2, gamma3, a_vir, gamma, & ! Bias parameters
                                   H_z, n_H_z, DA_z, n_DA_z, &
                                   twopt_type, num_ell, num_points_use, num_bands_use, z_index, zm, om_fid, h0_fid, & !dataset params
                                   use_growth, local_lag_g2, local_lag_g3, &
@@ -20,10 +21,10 @@ module bias_module
                                   bands, n_bands, &
                                   Pk_z, n_Pk_z, Pk_log_k, n_Pk_log_k, Pk, n_Pk_x, n_Pk_y, &
                                   growth_z, n_growth_z, sigma8_z, n_sigma8_z, &
-                                  data_params, n_data_params, &
                                   vtheo, n_vtheo, vtheo_convolved, n_vtheo_convolved, &
                                   verbose) bind(c, name="compute_wedges")
             real(kind=c_double), intent(in) :: h, omdm, omb, omv, omk, omnuh2, nnu, w, wa
+            real(kind=c_double), intent(in) :: b1, b2, gamma2, gamma3, a_vir, gamma
 
             integer(kind=c_int), intent(in) :: n_H_z, n_DA_z
             real(kind=c_double), intent(in) :: H_z(n_H_z), DA_z(n_DA_z)
@@ -42,9 +43,6 @@ module bias_module
             integer(kind=c_int), intent(in) :: n_growth_z, n_sigma8_z
             real(kind=c_double), intent(in) :: growth_z(n_growth_z), sigma8_z(n_sigma8_z)
 
-            integer(kind=c_int), intent(in) :: n_data_params
-            real(kind=c_double), intent(in) :: data_params(n_data_params)
-
             integer(kind=c_int), intent(in) :: n_vtheo, n_vtheo_convolved
             real(kind=c_double), intent(inout) :: vtheo(n_vtheo), vtheo_convolved(n_vtheo_convolved)
 
@@ -55,7 +53,7 @@ module bias_module
             type(twopt_dataset)                       :: dataset
 
             type(CMBParams)                           :: CMB       !cosmological parameters
-            type(TCosmoTheoryPredictions)             :: Theory  !power spectrum and derived parameters (H and D_A)
+            type(TCosmoTheoryPredictions)             :: Theory    !power spectrum and derived parameters (H and D_A)
             real(mcp), dimension(:), allocatable      :: DataParams
 
             integer                                   :: i
@@ -146,7 +144,13 @@ module bias_module
             allocate(Theory%sigma8_z%x, source=Pk_z)
             allocate(Theory%sigma8_z%F, source=sigma8_z)
 
-            allocate(DataParams, source=data_params)
+            allocate(DataParams(6))
+            DataParams(1) = b1
+            DataParams(2) = b2
+            DataParams(3) = gamma2
+            DataParams(4) = gamma3
+            DataParams(5) = a_vir
+            DataParams(6) = gamma
 
             ! CosmoSettings (need to set z_outputs?)
             CosmoSettings%use_growth = use_growth
@@ -158,7 +162,7 @@ module bias_module
             call init_model(model, dataset)
             write(*,*) "Calling get_model."
 
-            if(n_vtheo /= n_bands*num_ell) then
+            if(n_vtheo /= num_bands_use*num_ell) then
                 stop "Size of vtheo array doesn't match"
             end if
             call get_model(model, z_index, bands, vtheo, CMB, Theory, DataParams)
