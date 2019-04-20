@@ -266,7 +266,7 @@ pub: dist
 clean:
 	-$(RM) $(TARFILE) $(TARDIR) demo-c.out \
 	  partview.moc partview.o makefile.partview \
-	  *.o */*.o */*.tm.c
+	  *.o */*.o */*.tm.c libcuba.a
 
 distclean: clean
 	-$(RM) $(LIB) demo-c demo-fortran $(MATH) $(TOOLS) \
