@@ -22,6 +22,7 @@ module bias_module
                                   Pk_z, n_Pk_z, Pk_log_k, n_Pk_log_k, Pk, n_Pk_x, n_Pk_y, &
                                   growth_z, n_growth_z, sigma8_z, n_sigma8_z, &
                                   vtheo, n_vtheo, vtheo_convolved, n_vtheo_convolved, &
+                                  Pk_mm, n_Pk_mm, Pk_gm, n_Pk_gm, Pk_gg, n_Pk_gg, &
                                   verbose) bind(c, name="compute_wedges")
             real(kind=c_double), intent(in) :: h, omdm, omb, omv, omk, omnuh2, nnu, w, wa
             real(kind=c_double), intent(in) :: b1, b2, gamma2, gamma3, a_vir, gamma
@@ -45,6 +46,9 @@ module bias_module
 
             integer(kind=c_int), intent(in) :: n_vtheo, n_vtheo_convolved
             real(kind=c_double), intent(inout) :: vtheo(n_vtheo), vtheo_convolved(n_vtheo_convolved)
+
+            integer(kind=c_int), intent(in) :: n_Pk_mm, n_Pk_gm, n_Pk_gg
+            real(kind=c_double), intent(inout) :: Pk_mm(n_Pk_mm), Pk_gm(n_Pk_gm), Pk_gg(n_Pk_gg)
 
             integer(kind=c_int), intent(in) :: verbose
 
@@ -171,6 +175,17 @@ module bias_module
                 stop "Size of vtheo_convolved array doesn't match"
             end if
             call dataset%convolve(vtheo, vtheo_convolved)
+
+            if(n_Pk_mm /= n_Pk_log_k .or. n_Pk_gm /= n_Pk_log_k .or. n_Pk_gg /= n_Pk_log_k) then
+                stop "Size of output power spectrum and input k array do not match."
+            end if
+
+            write(*,*) "Getting power spectra."
+            do i=1,n_Pk_log_k
+                Pk_mm(i) = gRPT_Pdd(exp(Pk_log_k(i)))
+                Pk_gm(i) = gRPT_Pgd(exp(Pk_log_k(i)))
+                Pk_gg(i) = gRPT_Pgg(exp(Pk_log_k(i)))
+            end do
 
         end subroutine compute_wedges
 end module bias_module

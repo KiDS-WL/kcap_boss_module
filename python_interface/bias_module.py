@@ -77,10 +77,17 @@ class BiasModule:
                       *array_ctype(ndim=1, dtype=np.float64), # sigma8_z
                       *array_ctype(ndim=1, dtype=np.float64), # vtheo
                       *array_ctype(ndim=1, dtype=np.float64), # vtheo_convolved
+                      *array_ctype(ndim=1, dtype=np.float64), # Pk_mm
+                      *array_ctype(ndim=1, dtype=np.float64), # Pk_gm
+                      *array_ctype(ndim=1, dtype=np.float64), # Pk_gg
                       ct.POINTER(ct.c_int),        # verbose
                       ]      
         vtheo = np.empty(num_ell*len(bands))
         vtheo_convolved = np.empty(num_ell*num_points_use)
+
+        Pk_mm = np.zeros(len(log_k))
+        Pk_gm = np.zeros(len(log_k))
+        Pk_gg = np.zeros(len(log_k))
 
         f(ct.c_double(h), ct.c_double(omdm), ct.c_double(omb), ct.c_double(omv), ct.c_double(omk),
           ct.c_double(omnuh2), ct.c_double(nnu), ct.c_double(w), ct.c_double(wa),
@@ -98,9 +105,12 @@ class BiasModule:
           *array_arg(sigma8_z),
           *array_arg(vtheo),
           *array_arg(vtheo_convolved),
+          *array_arg(Pk_mm),
+          *array_arg(Pk_gm),
+          *array_arg(Pk_gg),
           ct.c_int(verbose)
           )
-        return vtheo, vtheo_convolved
+        return vtheo, vtheo_convolved, Pk_mm, Pk_gm, Pk_gg
 
 
 if __name__ == "__main__":

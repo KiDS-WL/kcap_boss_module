@@ -47,6 +47,8 @@ def setup(options):
 
     config["output_section"] = options.get_string(option_section, "output_section", "xi_wedges")
 
+    config["compute_lss_parameters"] = options.get_bool(option_section, "compute_lss_parameters", True)
+
     config["twopt_type"] = 4
     config["num_ell"] = 3
     config["num_points_use"] = config["window"].shape[0]
@@ -137,7 +139,8 @@ def execute(block, config):
     else:
         gamma = 0.0
 
-    vtheo, vtheo_convolved = config["module"].compute_wedges(
+    vtheo, vtheo_convolved, Pk_mm, Pk_gm, Pk_gg = \
+        config["module"].compute_wedges(
                              h, omdm, omb, omv, omk, omnuh2, nnu, w, wa, 
                              b1, b2, gamma2, gamma3, a_vir, gamma,
                              H_z, DA_z,
@@ -160,6 +163,26 @@ def execute(block, config):
     block[config["output_section"], "vtheo"] = vtheo
     block[config["output_section"], "bands"] = config["bands"]
     block[config["output_section"], "vtheo_convolved"] = vtheo_convolved
+    block[config["output_section"], "Pk_mm"] = Pk_mm
+    block[config["output_section"], "Pk_gm"] = Pk_gm
+    block[config["output_section"], "Pk_gg"] = Pk_gg
+
+    if config["compute_lss_parameters"]:
+        z = block["distances", "z"]
+        D_m = block["distances", "d_m"]
+        H = block["distances", "h"]
+        r_d = block["distances", "rs_zdrag"]
+
+        z_index = np.argmin(np.abs(z-config["zm"]))
+        D_v = ((D_m**2 *z/H)**(1/3))[z_index]
+        F_AP = (D_m*H)[z_index]
+
+        z_index = np.argmin(np.abs(z_growth-config["zm"]))
+        f_sigma_8 = growth[z_index]
+        
+        block["lss_parameters", "d_v_over_r_d"] = D_v/r_d
+        block["lss_parameters", "F_AP"] = F_AP
+        block["lss_parameters", "f_sigma_8"] = f_sigma_8
 
     return 0
 
