@@ -1,6 +1,9 @@
 ifeq (${FC},)
 FC = gfortran
 endif
+ifeq (${FC},f77)
+FC = gfortran
+endif
 
 FFLAGS =  -fPIC -cpp -fopenmp -O3 -ffree-line-length-none -std=f2008
 DEBUGFLAGS = -g -O0 -fcheck=all -fbacktrace -cpp -fdec -fopenmp -ffree-line-length-none
@@ -101,6 +104,7 @@ $(LIB_DIR)/libboss.a: $(OBJ)
 
 $(LIB_DIR)/libbias_wrapper.so: $(OBJ) bias_module.f90
 	@echo "\nBuilding bias module wrapper.\n"
+	@echo ${FC}
 	$(make_dirs)
 	$(FC) -shared -o $@ $^ -J$(BUILD_DIR) $(LDFLAGS) $(FFLAGS)
 
