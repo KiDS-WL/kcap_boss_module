@@ -17,7 +17,7 @@ project(BOSS_MODULE LANGUAGES Fortran C CXX VERSION 0.1)
 
     add_custom_target(cuba1.4
                       COMMENT "Running make lib for cuba1.4"
-                      COMMAND ${CMAKE_COMMAND} -E env CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER} FC=${FC} ./configure
+                      COMMAND ${CMAKE_COMMAND} -E env CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER} FC=${FC} CFLAGS=-fPIC ./configure
                       COMMAND ${CMAKE_COMMAND} -E env CC=${CMAKE_C_COMPILER} CXX=${CMAKE_CXX_COMPILER} FC=${FC} make ${QUIET_MAKE} lib
                       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/Cuba-1.4/
                       )
