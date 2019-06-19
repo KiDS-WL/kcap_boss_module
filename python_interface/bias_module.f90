@@ -161,10 +161,15 @@ module bias_module
             CosmoSettings%local_lag_g2 = local_lag_g2
             CosmoSettings%local_lag_g3 = local_lag_g3
 
-            feedback = 2
-            write(*,*) "Calling init_model."
+            if(verbose > 0) then
+                feedback = 2
+            else
+                feedback = 0
+            endif
+
+            if(verbose > 0) write(*,*) "Calling init_model."
             call init_model(model, dataset)
-            write(*,*) "Calling get_model."
+            if(verbose > 0) write(*,*) "Calling get_model."
 
             if(n_vtheo /= num_bands_use*num_ell) then
                 stop "Size of vtheo array doesn't match"
@@ -180,7 +185,7 @@ module bias_module
                 stop "Size of output power spectrum and input k array do not match."
             end if
 
-            write(*,*) "Getting power spectra."
+            if(verbose > 0) write(*,*) "Getting power spectra."
             do i=1,n_Pk_log_k
                 Pk_mm(i) = gRPT_Pdd(exp(Pk_log_k(i)))
                 Pk_gm(i) = gRPT_Pgd(exp(Pk_log_k(i)))

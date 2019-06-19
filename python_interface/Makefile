@@ -104,7 +104,7 @@ $(LIB_DIR)/libboss.a: $(OBJ)
 
 $(LIB_DIR)/libbias_wrapper.so: $(OBJ) bias_module.f90
 	@echo "\nBuilding bias module wrapper.\n"
-	@echo ${FC}
+	@echo "Using " ${FC}
 	$(make_dirs)
 	$(FC) -shared -o $@ $^ -J$(BUILD_DIR) $(LDFLAGS) $(FFLAGS)
 
