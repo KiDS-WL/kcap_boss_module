@@ -101,6 +101,10 @@ def execute(block, config):
     log_k_h = np.log(block[names.matter_power_lin, "k_h"])
     z_Pk = block[names.matter_power_lin, "z"]
 
+    Pk_mm_pt = np.zeros((len(config["zm"]), len(log_k_h)))
+    Pk_gm_pt = np.zeros((len(config["zm"]), len(log_k_h)))
+    Pk_gg_pt = np.zeros((len(config["zm"]), len(log_k_h)))
+
     z_growth = block["growth", "z"]
     if not np.allclose(z_Pk, z_growth):
         raise ValueError("Redshifts of power spectrum and growth do not match.")
@@ -177,9 +181,9 @@ def execute(block, config):
 
         block[config["output_section_wedges"], f"vtheo_bin_{b}"] = vtheo
         block[config["output_section_wedges"], f"bin_{b}"] = vtheo_convolved
-        block[config["output_section_pk_mm"], f"bin_{b}"] = Pk_mm
-        block[config["output_section_pk_gm"], f"bin_{b}"] = Pk_gm
-        block[config["output_section_pk_gg"], f"bin_{b}"] = Pk_gg
+        Pk_mm_pt[i] = Pk_mm
+        Pk_gm_pt[i] = Pk_gm
+        Pk_gg_pt[i] = Pk_gg
 
     block[config["output_section_wedges"], "n_wedge"] = config["num_ell"]
     block[config["output_section_wedges"], "bands"] = config["bands"]
@@ -192,6 +196,10 @@ def execute(block, config):
     block[config["output_section_pk_mm"], "k_h"] = np.exp(log_k_h)
     block[config["output_section_pk_gm"], "k_h"] = np.exp(log_k_h)
     block[config["output_section_pk_gg"], "k_h"] = np.exp(log_k_h)
+
+    block[config["output_section_pk_mm"], "p_k"] = Pk_mm_pt
+    block[config["output_section_pk_gm"], "p_k"] = Pk_gm_pt
+    block[config["output_section_pk_gg"], "p_k"] = Pk_gg_pt
 
     if config["compute_lss_parameters"]:
         z = block["distances", "z"]
