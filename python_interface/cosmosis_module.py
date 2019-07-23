@@ -105,13 +105,16 @@ def execute(block, config):
     Pk_gm_pt = np.zeros((len(config["zm"]), len(log_k_h)))
     Pk_gg_pt = np.zeros((len(config["zm"]), len(log_k_h)))
 
-    z_growth = block["growth", "z"]
+    z_growth = block[names.growth_parameters, "z"]
     if not np.allclose(z_Pk, z_growth):
         raise ValueError("Redshifts of power spectrum and growth do not match.")
 
-    sigma8 = block["growth", "SIGMA_8"]
-    sigma2_vdelta_8 = block["growth", "SIGMA2_VDELTA_8"]
-    growth = sigma2_vdelta_8/sigma8
+    sigma8 = block[names.growth_parameters, "SIGMA_8"]
+    if block.has_value(names.growth_parameters, "fsigma_8"):
+        growth = block[names.growth_parameters, "fsigma_8"]
+    else:
+        sigma2_vdelta_8 = block[names.growth_parameters, "SIGMA2_VDELTA_8"]
+        growth = sigma2_vdelta_8/sigma8
 
     for i, zm in enumerate(config["zm"]):
         b = i + 1
