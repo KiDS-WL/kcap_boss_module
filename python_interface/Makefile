@@ -5,18 +5,6 @@ ifeq (${FC},f77)
 FC = gfortran
 endif
 
-FFLAGS =  -fPIC -cpp -fopenmp -O3 -ffree-line-length-none -std=f2008
-DEBUGFLAGS = -g -O0 -fcheck=all -fbacktrace -cpp -fdec -fopenmp -ffree-line-length-none
-#add -fpe0 to check for floating point errors (think lowLike also throws these harmlessly)
-#MODOUT = -J$(OUTPUT_DIR)
-LAPACKL = ${LAPACK_LINK}
-CUBALIB = ../Cuba-1.4/libcuba.a
-
-LDFLAGS = ${CUBALIB} ${LAPACKL}
-
-all: lib
-
-
 # Source-code directory
 SRC_DIR = ../CosmoMC_BOSS/source
 
@@ -28,6 +16,24 @@ LIB_DIR = lib
 
 # Debug build directory
 DEBUG_BUILD_DIR = debug_build
+
+ifneq (${FC},gfortran)
+FFLAGS = -fpic -fpp -qopenmp -fp-model precise -W0 -WB -O3 -ipo -axCORE-AVX2
+DEBUGFLAGS = -fpp -qopenmp -g -check all -check noarg_temp_created -traceback -fpe0
+MODOUT = -module $(BUILD_DIR)
+DEBUG_MODOUT = -module $(DEBUG_BUILD_DIR)
+else
+FFLAGS =  -fPIC -cpp -fopenmp -O3 -ffree-line-length-none -std=f2008
+DEBUGFLAGS = -g -O0 -fcheck=all -fbacktrace -cpp -fdec -fopenmp -ffree-line-length-none
+#add -fpe0 to check for floating point errors (think lowLike also throws these harmlessly)
+MODOUT = -J$(BUILD_DIR)
+DEBUG_MODOUT = -J$(DEBUG_BUILD_DIR)
+endif
+
+LAPACKL = ${LAPACK_LINK}
+CUBALIB = ../Cuba-1.4/libcuba.a
+
+LDFLAGS = ${CUBALIB} ${LAPACKL}
 
 # Objects
 _OBJ = dummy_camb.o \
@@ -88,12 +94,12 @@ debug_bin: $(BIN_DIR)/wrapper_driver_debug
 # Rule to make object files
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.f90
 	$(make_dirs)
-	$(FC) -c -o $@ $< -J$(BUILD_DIR) $(LDFLAGS) $(FFLAGS)
+	$(FC) -c -o $@ $< $(MODOUT)  $(LDFLAGS) $(FFLAGS)
 
 # Rule to make debugging objects
 $(DEBUG_BUILD_DIR)/%.o: $(SRC_DIR)/%.f90
 	$(make_dirs)
-	$(FC) -c -o $@ $< -J$(DEBUG_BUILD_DIR) $(LDFLAGS) $(FFLAGS)
+	$(FC) -c -o $@ $< $(DEBUG_MODOUT) $(LDFLAGS) $(FFLAGS)
 
 
 # Rule to make HMx static library
@@ -106,17 +112,17 @@ $(LIB_DIR)/libbias_wrapper.so: $(OBJ) bias_module.f90
 	@echo "\nBuilding bias module wrapper.\n"
 	@echo "Using " ${FC}
 	$(make_dirs)
-	$(FC) -shared -o $@ $^ -J$(BUILD_DIR) $(LDFLAGS) $(FFLAGS)
+	$(FC) -shared -o $@ $^ $(MODOUT) $(LDFLAGS) $(FFLAGS)
 
 $(BIN_DIR)/wrapper_driver: $(OBJ) bias_module_test.f90
 	@echo "\nBuilding executable.\n"
 	$(make_dirs)
-	$(FC) -o $@ $^ -J$(BUILD_DIR) $(LDFLAGS) $(FFLAGS)
+	$(FC) -o $@ $^ $(MODOUT) $(LDFLAGS) $(FFLAGS)
 
 $(BIN_DIR)/wrapper_driver_debug: $(DEBUG_OBJ) bias_module_test.f90
 	@echo "\nBuilding executable.\n"
 	$(make_dirs)
-	$(FC) -o $@ $^ -J$(DEBUG_BUILD_DIR) $(LDFLAGS) $(FFLAGS)
+	$(FC) -o $@ $^ $(DEBUG_MODOUT) $(LDFLAGS) $(FFLAGS)
 
 # Rule to make cosmosis interface
 #$(LIB_DIR)/libboss.so: $(SRC_DIR)/cosmosis_interface.f90

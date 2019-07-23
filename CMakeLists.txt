@@ -1,13 +1,22 @@
 cmake_minimum_required(VERSION 3.2)
 
 project(BOSS_MODULE LANGUAGES Fortran C CXX VERSION 0.1)
-    set(FC "gfortran" CACHE STRING "Fortran compiler.")
+    if(DEFINED ENV{FC} AND $ENV{FC} MATCHES "^.*ifort$")
+        set(FC $ENV{FC} CACHE STRING "Fortran compiler")
+        message("FC set to ${FC}")
+    else()
+        set(FC "gfortran" CACHE STRING "Fortran compiler")
+        message("Defaulting to gfortran")
+    endif()
 
     set(QUIET_MAKE "--no-print-directory")
 
     if(APPLE)
         set(LAPACK_LINK "-framework Accelerate")
     else()
+        if(FC MATCHES "^.*ifort$")
+            set(BLA_VENDOR Intel10_64lp)
+	endif()
         find_package(LAPACK REQUIRED)
 	list(GET LAPACK_LIBRARIES 0 LAPACK_LIB)
 	get_filename_component(LAPACK_LIB_DIR ${LAPACK_LIB} DIRECTORY)
