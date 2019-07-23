@@ -87,11 +87,11 @@ def execute(block, config):
     omv = block[names.cosmological_parameters, "omega_lambda"]
     omk = block[names.cosmological_parameters, "omega_k"]
     omnuh2 = block[names.cosmological_parameters, "omnuh2"]
-    nnu = block.get_int(names.cosmological_parameters, "massive_nu", default=0) \
-         + block.get_double(names.cosmological_parameters, "massless_nu", default=3.046)
+    nnu = block.get_double(names.cosmological_parameters, "nnu", default=3.046)
     w = block[names.cosmological_parameters, "w"]
     wa = block[names.cosmological_parameters, "wa"]
 
+    #print("h omdm omb omv omk omnuh2 nnu w wa", h, omdm, omb, omv, omk, omnuh2, nnu, w, wa)
     if config["use_growth"]:
         gamma = block["bias_parameters", f"gamma"]
     else:
@@ -115,6 +115,11 @@ def execute(block, config):
     else:
         sigma2_vdelta_8 = block[names.growth_parameters, "SIGMA2_VDELTA_8"]
         growth = sigma2_vdelta_8/sigma8
+    #print("z_pk", z_Pk, flush=True)
+    #print("Pk shape:", log_Pk.shape, "Pk(fixed k):", log_Pk[:,log_Pk.shape[1]//2], flush=True)
+    #print("z_growth:", z_growth, flush=True)
+    #print("sigma_8", sigma8, flush=True)
+    #print("fsigma_8:", growth, flush=True)
 
     for i, zm in enumerate(config["zm"]):
         b = i + 1
