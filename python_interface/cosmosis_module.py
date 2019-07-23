@@ -65,9 +65,9 @@ def setup(options):
     config["om_fid"] = 0.31
     config["h0_fid"] = 0.7
 
-    config["use_growth"] = False
-    config["local_lag_g2"] = True
-    config["local_lag_g3"] = False
+    config["use_growth"] = options.get_bool(option_section, "use_growth", False)
+    config["local_lag_g2"] = options.get_bool(option_section, "local_lag_g2", True)
+    config["local_lag_g3"] = options.get_bool(option_section, "local_lag_g3", False)
 
     # config["derived_parameters"] = np.loadtxt(os.path.join(here, "../output/derived_params.txt"))
     # config["data_parameters"] = np.loadtxt(os.path.join(here, "../output/data_params.txt"))
