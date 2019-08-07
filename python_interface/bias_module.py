@@ -28,17 +28,43 @@ class BiasModule:
         else:
             return getattr(self.lib, f"__{self.module_name}_MOD_{name}")
 
-    def compute_wedges(self, h, omdm, omb, omv, omk, omnuh2, nnu, w, wa,
-                             b1, b2, gamma2, gamma3, a_vir, gamma,
-                             H_z, DA_z, 
-                             twopt_type, num_ell, num_points_use, num_bands_use, z_index, zm, om_fid, h0_fid, 
-                             use_growth, local_lag_g2, local_lag_g3, 
-                             window, 
-                             bands, 
-                             z, log_k, Pk, 
-                             growth_z, sigma8_z, 
-                             verbose=True):
-        f = self.get_function("compute_wedges")
+    def initialize_wedges(self, twopt_type, num_ell, num_points_use, num_bands_use, zm, om_fid, h0_fid, 
+                                window,
+                                verbose=True):
+        f = self.get_function("initialize_wedges")
+        f.restype = ct.c_void_p
+        f.argtypes = [ct.POINTER(ct.c_int),        # twopt_type
+                      ct.POINTER(ct.c_int),        # num_ell
+                      ct.POINTER(ct.c_int),        # num_points_use
+                      ct.POINTER(ct.c_int),        # num_bands_use
+                      ct.POINTER(ct.c_double),     # zm
+                      ct.POINTER(ct.c_double),     # om_fid
+                      ct.POINTER(ct.c_double),     # h0_fid
+                      *array_ctype(ndim=2, dtype=np.float64), # window
+                      ct.POINTER(ct.c_int),        # verbose
+                      ]      
+
+        dataset_ptr = f(ct.c_int(twopt_type), ct.c_int(num_ell), ct.c_int(num_points_use), 
+                        ct.c_int(num_bands_use),
+                        ct.c_double(zm), ct.c_double(om_fid), ct.c_double(h0_fid),
+                        *array_arg(np.asfortranarray(window)),
+                        ct.c_int(verbose))
+        self.num_points_use = num_points_use
+        self.num_ell = num_ell
+        return dataset_ptr
+
+    def cleanup_wedges(self, config_ptr):
+        f = self.get_function("cleanup_wedges")
+        f.restype = None
+        f.argtypes = [ct.c_void_p]
+        f(config_ptr)
+
+    def setup_cosmology(self, h, omdm, omb, omv, omk, omnuh2, nnu, w, wa,
+                              use_growth, local_lag_g2, local_lag_g3, 
+                              z, log_k, Pk, 
+                              growth_z, sigma8_z, 
+                              verbose=True):
+        f = self.get_function("setup_cosmology")
         f.restype = None
         f.argtypes = [ct.POINTER(ct.c_double),     # h
                       ct.POINTER(ct.c_double),     # omdm
@@ -49,32 +75,48 @@ class BiasModule:
                       ct.POINTER(ct.c_double),     # nnu
                       ct.POINTER(ct.c_double),     # w
                       ct.POINTER(ct.c_double),     # wa
+                      ct.POINTER(ct.c_bool),       # use_growth
+                      ct.POINTER(ct.c_bool),       # local_lag_g2
+                      ct.POINTER(ct.c_bool),       # local_lag_g3
+                      *array_ctype(ndim=1, dtype=np.float64), # Pk_z
+                      *array_ctype(ndim=1, dtype=np.float64), # Pk_log_k
+                      *array_ctype(ndim=2, dtype=np.float64), # Pk
+                      *array_ctype(ndim=1, dtype=np.float64), # growth_z
+                      *array_ctype(ndim=1, dtype=np.float64), # sigma8_z
+                      ct.POINTER(ct.c_int),        # verbose
+                      ]      
+
+        f(ct.c_double(h), ct.c_double(omdm), ct.c_double(omb), ct.c_double(omv), ct.c_double(omk),
+          ct.c_double(omnuh2), ct.c_double(nnu), ct.c_double(w), ct.c_double(wa),
+          ct.c_bool(use_growth), ct.c_bool(local_lag_g2), ct.c_bool(local_lag_g3), 
+          *array_arg(z),
+          *array_arg(log_k),
+          *array_arg(np.asfortranarray(Pk)),
+          *array_arg(growth_z),
+          *array_arg(sigma8_z),
+          ct.c_int(verbose)
+          )
+        self.log_k = log_k
+
+    def compute_wedges(self, config_ptr,
+                             b1, b2, gamma2, gamma3, a_vir, gamma,
+                             z_index,
+                             H_z, DA_z, 
+                             bands, 
+                             verbose=True):
+        f = self.get_function("compute_wedges")
+        f.restype = None
+        f.argtypes = [ct.c_void_p,
                       ct.POINTER(ct.c_double),     # b1
                       ct.POINTER(ct.c_double),     # b2
                       ct.POINTER(ct.c_double),     # gamma2
                       ct.POINTER(ct.c_double),     # gamma3
                       ct.POINTER(ct.c_double),     # a_vir
                       ct.POINTER(ct.c_double),     # gamma
+                      ct.POINTER(ct.c_int),        # z_index
                       *array_ctype(ndim=1, dtype=np.float64), # H_z
                       *array_ctype(ndim=1, dtype=np.float64), # DA_z
-                      ct.POINTER(ct.c_int),        # twopt_type
-                      ct.POINTER(ct.c_int),        # num_ell
-                      ct.POINTER(ct.c_int),        # num_points_use
-                      ct.POINTER(ct.c_int),        # num_bands_use
-                      ct.POINTER(ct.c_int),        # z_index
-                      ct.POINTER(ct.c_double),     # zm
-                      ct.POINTER(ct.c_double),     # om_fid
-                      ct.POINTER(ct.c_double),     # h0_fid
-                      ct.POINTER(ct.c_bool),       # use_growth
-                      ct.POINTER(ct.c_bool),       # local_lag_g2
-                      ct.POINTER(ct.c_bool),       # local_lag_g3
-                      *array_ctype(ndim=2, dtype=np.float64), # window
                       *array_ctype(ndim=1, dtype=np.float64), # bands
-                      *array_ctype(ndim=1, dtype=np.float64), # Pk_z
-                      *array_ctype(ndim=1, dtype=np.float64), # Pk_log_k
-                      *array_ctype(ndim=2, dtype=np.float64), # Pk
-                      *array_ctype(ndim=1, dtype=np.float64), # growth_z
-                      *array_ctype(ndim=1, dtype=np.float64), # sigma8_z
                       *array_ctype(ndim=1, dtype=np.float64), # vtheo
                       *array_ctype(ndim=1, dtype=np.float64), # vtheo_convolved
                       *array_ctype(ndim=1, dtype=np.float64), # Pk_mm
@@ -82,27 +124,18 @@ class BiasModule:
                       *array_ctype(ndim=1, dtype=np.float64), # Pk_gg
                       ct.POINTER(ct.c_int),        # verbose
                       ]      
-        vtheo = np.empty(num_ell*len(bands))
-        vtheo_convolved = np.empty(num_ell*num_points_use)
+        vtheo = np.empty(self.num_ell*len(bands))
+        vtheo_convolved = np.empty(self.num_ell*self.num_points_use)
 
-        Pk_mm = np.zeros(len(log_k))
-        Pk_gm = np.zeros(len(log_k))
-        Pk_gg = np.zeros(len(log_k))
+        Pk_mm = np.zeros(len(self.log_k))
+        Pk_gm = np.zeros(len(self.log_k))
+        Pk_gg = np.zeros(len(self.log_k))
 
-        f(ct.c_double(h), ct.c_double(omdm), ct.c_double(omb), ct.c_double(omv), ct.c_double(omk),
-          ct.c_double(omnuh2), ct.c_double(nnu), ct.c_double(w), ct.c_double(wa),
+        f(config_ptr, 
           ct.c_double(b1), ct.c_double(b2), ct.c_double(gamma2), ct.c_double(gamma3), ct.c_double(a_vir), ct.c_double(gamma),
+          ct.c_int(z_index), 
           *array_arg(np.asfortranarray(H_z)), *array_arg(np.asfortranarray(DA_z)),
-          ct.c_int(twopt_type), ct.c_int(num_ell), ct.c_int(num_points_use), ct.c_int(num_bands_use), ct.c_int(z_index), 
-          ct.c_double(zm), ct.c_double(om_fid), ct.c_double(h0_fid),
-          ct.c_bool(use_growth), ct.c_bool(local_lag_g2), ct.c_bool(local_lag_g3), 
-          *array_arg(np.asfortranarray(window)),
           *array_arg(bands),
-          *array_arg(z),
-          *array_arg(log_k),
-          *array_arg(np.asfortranarray(Pk)),
-          *array_arg(growth_z),
-          *array_arg(sigma8_z),
           *array_arg(vtheo),
           *array_arg(vtheo_convolved),
           *array_arg(Pk_mm),
@@ -166,16 +199,22 @@ if __name__ == "__main__":
     sigma8_z = np.loadtxt("../benchmark/sigma8.txt")
 
     mod = BiasModule()
-    vtheo, vthep_convolved = mod.compute_wedges(
-                             h, omdm, omb, omv, omk, omnuh2, nnu, w, wa,
+    config_ptr = mod.initialize_wedges(twopt_type, num_ell, num_points_use, num_bands_use, zm, om_fid, h0_fid, 
+                                       window, verbose=True)
+
+    mod.setup_cosmology(h, omdm, omb, omv, omk, omnuh2, nnu, w, wa,
+                        use_growth, local_lag_g2, local_lag_g3,
+                        z, log_k, Pk, 
+                        growth_z, sigma8_z)
+
+    vtheo, vtheo_convolved, Pk_mm, Pk_gm, Pk_gg = mod.compute_wedges(config_ptr,
                              b1, b2, gamma2, gamma3, a_vir, gamma,
+                             z_index,
                              H_z, DA_z, 
-                             twopt_type, num_ell, num_points_use, num_bands_use, z_index, zm, om_fid, h0_fid, 
-                             use_growth, local_lag_g2, local_lag_g3,
-                             window, 
                              bands, 
-                             z, log_k, Pk, 
-                             growth_z, sigma8_z)
+                             )
+
+    mod.cleanup_wedges(config_ptr)
 
     np.savetxt("../output/vtheo_python.txt", vtheo)
-    np.savetxt("../output/vtheo_convolved_python.txt", vthep_convolved)
+    np.savetxt("../output/vtheo_convolved_python.txt", vtheo_convolved)

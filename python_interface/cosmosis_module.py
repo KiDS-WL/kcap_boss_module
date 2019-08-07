@@ -69,6 +69,14 @@ def setup(options):
     config["local_lag_g2"] = options.get_bool(option_section, "local_lag_g2", True)
     config["local_lag_g3"] = options.get_bool(option_section, "local_lag_g3", False)
 
+    config["wedges_config"] = []
+    for z in config["zm"]:
+        config["wedges_config"].append(config["module"].initialize_wedges(
+                                                         config["twopt_type"], config["num_ell"], 
+                                                         config["num_points_use"], config["num_bands_use"], 
+                                                         z, config["om_fid"], config["h0_fid"], 
+                                                         config["window"], verbose=config["verbose"]))
+
     # config["derived_parameters"] = np.loadtxt(os.path.join(here, "../output/derived_params.txt"))
     # config["data_parameters"] = np.loadtxt(os.path.join(here, "../output/data_params.txt"))
 
@@ -91,7 +99,6 @@ def execute(block, config):
     w = block[names.cosmological_parameters, "w"]
     wa = block[names.cosmological_parameters, "wa"]
 
-    #print("h omdm omb omv omk omnuh2 nnu w wa", h, omdm, omb, omv, omk, omnuh2, nnu, w, wa)
     if config["use_growth"]:
         gamma = block["bias_parameters", f"gamma"]
     else:
@@ -100,10 +107,6 @@ def execute(block, config):
     log_Pk = np.log(block[names.matter_power_lin, "p_k"])
     log_k_h = np.log(block[names.matter_power_lin, "k_h"])
     z_Pk = block[names.matter_power_lin, "z"]
-
-    Pk_mm_pt = np.zeros((len(config["zm"]), len(log_k_h)))
-    Pk_gm_pt = np.zeros((len(config["zm"]), len(log_k_h)))
-    Pk_gg_pt = np.zeros((len(config["zm"]), len(log_k_h)))
 
     z_growth = block[names.growth_parameters, "z"]
     if not np.allclose(z_Pk, z_growth):
@@ -115,11 +118,17 @@ def execute(block, config):
     else:
         sigma2_vdelta_8 = block[names.growth_parameters, "SIGMA2_VDELTA_8"]
         growth = sigma2_vdelta_8/sigma8
-    #print("z_pk", z_Pk, flush=True)
-    #print("Pk shape:", log_Pk.shape, "Pk(fixed k):", log_Pk[:,log_Pk.shape[1]//2], flush=True)
-    #print("z_growth:", z_growth, flush=True)
-    #print("sigma_8", sigma8, flush=True)
-    #print("fsigma_8:", growth, flush=True)
+
+    # Setup cosmology
+    config["module"].setup_cosmology(h, omdm, omb, omv, omk, omnuh2, nnu, w, wa, 
+                                     config["use_growth"], config["local_lag_g2"], config["local_lag_g3"],
+                                     z_Pk, log_k_h, log_Pk.T,
+                                     growth, sigma8, verbose=config["verbose"])
+
+    
+    Pk_mm_pt = np.zeros((len(config["zm"]), len(log_k_h)))
+    Pk_gm_pt = np.zeros((len(config["zm"]), len(log_k_h)))
+    Pk_gg_pt = np.zeros((len(config["zm"]), len(log_k_h)))
 
     for i, zm in enumerate(config["zm"]):
         b = i + 1
@@ -138,22 +147,6 @@ def execute(block, config):
             DA_z = DA_z[s]
             z_index = np.argmin(np.abs(z-zm))
 
-        # print(f"z_index: {z_index} (z={z[z_index]})")
-        # print(f"H(z_index) = {H_z[z_index]}, DA(z_index) = {DA_z[z_index]}")
-
-        # log_Pk_intp = scipy.interpolate.RectBivariateSpline(z, log_k_h, log_Pk)
-        # log_k_h = config["log_k_pk"]
-        # z = config["z_pk"]
-        # log_Pk = log_Pk_intp(z, log_k_h, grid=True)
-
-        # log_Pk = config["log_pk"].T
-        # log_k_h = config["log_k_pk"]
-        # z = config["z_pk"]
-
-        # sigma8 = scipy.interpolate.InterpolatedUnivariateSpline(z_growth, sigma8)(z)
-        # growth = scipy.interpolate.InterpolatedUnivariateSpline(z_growth, growth)(z)
-        # z_growth = z
-
         # Bias parameters
         b1 = block["bias_parameters", f"b1_bin_{b}"]
         b2 = block["bias_parameters", f"b2_bin_{b}"]
@@ -167,20 +160,13 @@ def execute(block, config):
             gamma3 = 1.0
         a_vir = block["bias_parameters", f"a_vir_bin_{b}"]
 
-        vtheo, vtheo_convolved, Pk_mm, Pk_gm, Pk_gg = \
-            config["module"].compute_wedges(
-                                h, omdm, omb, omv, omk, omnuh2, nnu, w, wa, 
-                                b1, b2, gamma2, gamma3, a_vir, gamma,
-                                H_z, DA_z,
-                                config["twopt_type"], config["num_ell"], 
-                                config["num_points_use"], config["num_bands_use"], 
-                                z_index+2, zm, config["om_fid"], config["h0_fid"], 
-                                config["use_growth"], config["local_lag_g2"], config["local_lag_g3"],
-                                config["window"], 
-                                config["bands"], 
-                                z_Pk, log_k_h, log_Pk.T,
-                                growth, sigma8,
-                                verbose=config["verbose"])
+        vtheo, vtheo_convolved, Pk_mm, Pk_gm, Pk_gg = config["module"].compute_wedges(
+                                                        config["wedges_config"][i],
+                                                        b1, b2, gamma2, gamma3, a_vir, gamma,
+                                                        z_index+2,
+                                                        H_z, DA_z,
+                                                        config["bands"],
+                                                        verbose=config["verbose"])
 
         n = len(vtheo)//config["num_ell"]
         vtheo = np.array([vtheo[i*n:(i+1)*n] for i in range(config["num_ell"])])
@@ -232,4 +218,5 @@ def execute(block, config):
     return 0
 
 def cleanup(config):
-    pass
+    for c in config["wedges_config"]:
+        config["module"].cleanup_wedges(c)

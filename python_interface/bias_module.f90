@@ -1,66 +1,115 @@
+module bias_module_config
+    use twopt_model_def
+
+    type wedges_config
+        type(twopt_dataset)      :: dataset
+        type(twopt_model)        :: model
+    end type wedges_config
+
+    public wedges_config
+
+end module bias_module_config
+
 module bias_module
     use, intrinsic :: ieee_arithmetic
 
-    use iso_c_binding,  only : c_int, c_double, c_float, c_bool
+    use iso_c_binding,  only : c_int, c_double, c_float, c_bool, c_loc, c_ptr, c_f_pointer
     use CosmologyTypes, only: CMBParams, TCosmoTheoryParams, CosmoSettings, npar_atz, max_derived_parameters
     use CosmoTheory,    only: TCosmoTheoryPredictions
+    use NLRSD_settings, only: NLRSD_redshift, tot_NLRSD_redshift, num_NLRSD_redshift
     use twopt_model_def
     use FileUtils
     use CAMB,           only : nthermo_derived!derived_age, derived_zstar, derived_rstar, derived_thetastar, derived_DAstar, &
     ! derived_zdrag, derived_rdrag, derived_kD, derived_thetaD, derived_zEQ, derived_keq , &
     ! derived_thetaEQ, derived_theta_rs_EQ
+
+    use bias_module_config
+
     implicit none
 
+    !power spectrum and derived parameters (H and D_A)
+    !Holds the NLRSD tables and therefore needs to be persistent between calls
+    type(TCosmoTheoryPredictions)             :: Theory    
+    type(CMBParams)                           :: CMB       !cosmological parameters
+
     contains
-        subroutine compute_wedges(h, omdm, omb, omv, omk, omnuh2, nnu, w, wa, & !CMB params
-                                  b1, b2, gamma2, gamma3, a_vir, gamma, & ! Bias parameters
-                                  H_z, n_H_z, DA_z, n_DA_z, &
-                                  twopt_type, num_ell, num_points_use, num_bands_use, z_index, zm, om_fid, h0_fid, & !dataset params
-                                  use_growth, local_lag_g2, local_lag_g3, &
-                                  window, n_window_x, n_window_y, &
-                                  bands, n_bands, &
-                                  Pk_z, n_Pk_z, Pk_log_k, n_Pk_log_k, Pk, n_Pk_x, n_Pk_y, &
-                                  growth_z, n_growth_z, sigma8_z, n_sigma8_z, &
-                                  vtheo, n_vtheo, vtheo_convolved, n_vtheo_convolved, &
-                                  Pk_mm, n_Pk_mm, Pk_gm, n_Pk_gm, Pk_gg, n_Pk_gg, &
-                                  verbose) bind(c, name="compute_wedges")
-            real(kind=c_double), intent(in) :: h, omdm, omb, omv, omk, omnuh2, nnu, w, wa
-            real(kind=c_double), intent(in) :: b1, b2, gamma2, gamma3, a_vir, gamma
+        function initialize_wedges(twopt_type, num_ell, num_points_use, num_bands_use, zm, om_fid, h0_fid, &
+                                   window, n_window_x, n_window_y, &
+                                   verbose) result(config_ptr) bind(c, name="initialize_wedges")            
+            integer(kind=c_int), intent(in)   :: twopt_type, num_ell, num_points_use, num_bands_use
+            real(kind=c_double), intent(in)   :: zm, om_fid, h0_fid
 
-            integer(kind=c_int), intent(in) :: n_H_z, n_DA_z
-            real(kind=c_double), intent(in) :: H_z(n_H_z), DA_z(n_DA_z)
-
-            integer(kind=c_int), intent(in) :: twopt_type, num_ell, num_points_use, num_bands_use, z_index
-            real(kind=c_double), intent(in) :: zm, om_fid, h0_fid
-            logical(kind=c_bool), intent(in) :: use_growth, local_lag_g2, local_lag_g3
-
-            integer(kind=c_int), intent(in) :: n_window_x, n_window_y, n_bands
-            real(kind=c_double), intent(in) :: window(n_window_x, n_window_y), bands(n_bands)
-
-            integer(kind=c_int), intent(in) :: n_Pk_z, n_Pk_log_k, n_Pk_x, n_Pk_y
-            real(kind=c_double), intent(in) :: Pk_z(n_Pk_z), Pk_log_k(n_Pk_log_k)
-            real(kind=c_double), intent(in) :: Pk(n_Pk_x, n_Pk_y)
-
-            integer(kind=c_int), intent(in) :: n_growth_z, n_sigma8_z
-            real(kind=c_double), intent(in) :: growth_z(n_growth_z), sigma8_z(n_sigma8_z)
-
-            integer(kind=c_int), intent(in) :: n_vtheo, n_vtheo_convolved
-            real(kind=c_double), intent(inout) :: vtheo(n_vtheo), vtheo_convolved(n_vtheo_convolved)
-
-            integer(kind=c_int), intent(in) :: n_Pk_mm, n_Pk_gm, n_Pk_gg
-            real(kind=c_double), intent(inout) :: Pk_mm(n_Pk_mm), Pk_gm(n_Pk_gm), Pk_gg(n_Pk_gg)
-
+            integer(kind=c_int), intent(in) :: n_window_x, n_window_y
+            real(kind=c_double), intent(in) :: window(n_window_x, n_window_y)
+            
             integer(kind=c_int), intent(in) :: verbose
 
-            !Variables
-            type(twopt_model)                         :: model     !object reference
-            type(twopt_dataset)                       :: dataset
+            type(c_ptr)                       :: config_ptr
+            type(wedges_config), pointer      :: config
+            
+            allocate(config)
 
-            type(CMBParams)                           :: CMB       !cosmological parameters
-            type(TCosmoTheoryPredictions)             :: Theory    !power spectrum and derived parameters (H and D_A)
-            real(mcp), dimension(:), allocatable      :: DataParams
+            if(verbose > 0) then
+                feedback = 2
+            else
+                feedback = 0
+            endif
 
-            integer                                   :: i
+            !Set dataset params
+            config%dataset%twopt_type = twopt_type
+            config%dataset%nsize%num_ell = num_ell
+            config%dataset%nsize%num_points_use = num_points_use
+            config%dataset%nsize%num_bands_use = num_bands_use
+            config%dataset%zm = real(zm, kind=mcp)
+            config%dataset%om_fid = real(om_fid, kind=mcp)
+            config%dataset%h0_fid = real(h0_fid, kind=mcp)
+
+            allocate(config%dataset%window, source=window)
+
+            if(verbose > 0) write(*,*) "Calling init_model."
+            call init_model(config%model, config%dataset)
+            if(verbose > 0) write(*,*) "NLRSD_redshift", NLRSD_redshift, "tot_NLRSD_redshift", tot_NLRSD_redshift
+
+            config_ptr = c_loc(config)
+        end function initialize_wedges
+
+        subroutine cleanup_wedges(config_ptr) bind(c, name="cleanup_wedges")
+            type(c_ptr), value            :: config_ptr
+            type(wedges_config), pointer  :: config
+
+            call c_f_pointer(config_ptr, config)
+            deallocate(config%dataset%window)
+            deallocate(config)
+
+            call Theory%MPK%Clear()
+            deallocate(Theory%MPK)
+            call Theory%growth_z%Clear()
+            deallocate(Theory%growth_z)
+            call Theory%sigma8_z%Clear()
+            deallocate(Theory%sigma8_z)
+
+            NLRSD_redshift = 0.0
+            tot_NLRSD_redshift = 0.0
+            num_NLRSD_redshift = 0.0
+        end subroutine cleanup_wedges
+
+        subroutine setup_cosmology(h, omdm, omb, omv, omk, omnuh2, nnu, w, wa, & !CMB params
+                                   use_growth, local_lag_g2, local_lag_g3, &
+                                   Pk_z, n_Pk_z, Pk_log_k, n_Pk_log_k, Pk, n_Pk_x, n_Pk_y, &
+                                   growth_z, n_growth_z, sigma8_z, n_sigma8_z, &
+                                   verbose) bind(c, name="setup_cosmology")
+            real(kind=c_double), intent(in)  :: h, omdm, omb, omv, omk, omnuh2, nnu, w, wa
+            
+            logical(kind=c_bool), intent(in) :: use_growth, local_lag_g2, local_lag_g3
+
+            integer(kind=c_int), intent(in)  :: n_Pk_z, n_Pk_log_k, n_Pk_x, n_Pk_y
+            real(kind=c_double), intent(in)  :: Pk_z(n_Pk_z), Pk_log_k(n_Pk_log_k)
+            real(kind=c_double), intent(in)  :: Pk(n_Pk_x, n_Pk_y)
+
+            integer(kind=c_int), intent(in)  :: n_growth_z, n_sigma8_z
+            real(kind=c_double), intent(in)  :: growth_z(n_growth_z), sigma8_z(n_sigma8_z)
+
+            integer(kind=c_int), intent(in)  :: verbose
 
             !Set cosmological parameters
             CMB%h = real(h, kind=mcp)
@@ -72,6 +121,96 @@ module bias_module
             CMB%nnu = real(nnu, kind=mcp)
             CMB%w = real(w, kind=mcp)
             CMB%wa = real(wa, kind=mcp)
+
+            Theory%init_NLRSD = .true.
+
+            if(n_Pk_z /= n_Pk_y) then
+                stop "Size of z array and second dimension of Pk do not match."
+            else if(n_Pk_log_k /= n_Pk_x) then
+                stop "Size of k array and first dimension of Pk do not match."
+            else if(n_Pk_x /= size(Pk, dim=1)) then
+                stop "n_Px_x and first dimension of Pk do not match."
+            end if
+
+            !set power spectrum (see CAMBCalc_SetDerived)
+            ! call Theory%FreePK()
+            if(.not. allocated(Theory%MPK)) allocate(Theory%MPK)
+            call Theory%MPK%Init(Pk_log_k, Pk_z, Pk)
+
+            if(verbose > 2) then
+                write(*,*) "z: ", Pk_z
+                write(*,*) "log_k: ", Pk_log_k(:4)
+                write(*,*) "Pk: ", Pk(:,1)
+                write(*,*) Pk_log_k(1), exp(Pk_log_k(1)), Pk_z(1)
+                write(*,*) Theory%MPK%PowerAt(exp(Pk_log_k(1)), Pk_z(1)), log(Theory%MPK%PowerAt(exp(Pk_log_k(1)), Pk_z(1)))
+            end if
+
+            if(n_Pk_z /= n_growth_z) then
+                stop "Size of z array and growth array do not match."
+            else if(n_Pk_z /= n_sigma8_z) then
+                stop "Size of z array and sigma8 array do not match."
+            end if
+
+            if(.not. allocated(Theory%growth_z)) allocate(Theory%growth_z)
+            call Theory%growth_z%Clear()
+            Theory%growth_z%n = n_Pk_z
+            allocate(Theory%growth_z%x, source=Pk_z)
+            allocate(Theory%growth_z%F, source=growth_z)
+
+            if(.not. allocated(Theory%sigma8_z))  allocate(Theory%sigma8_z)
+            call Theory%sigma8_z%Clear()
+            Theory%sigma8_z%n = n_Pk_z
+            allocate(Theory%sigma8_z%x, source=Pk_z)
+            allocate(Theory%sigma8_z%F, source=sigma8_z)
+
+            ! CosmoSettings (need to set z_outputs?)
+            CosmoSettings%use_growth = use_growth
+            CosmoSettings%local_lag_g2 = local_lag_g2
+            CosmoSettings%local_lag_g3 = local_lag_g3
+        end subroutine setup_cosmology
+
+        subroutine compute_wedges(config_ptr, &
+                                  b1, b2, gamma2, gamma3, a_vir, gamma, & ! Bias parameters
+                                  z_index, &
+                                  H_z, n_H_z, DA_z, n_DA_z, &
+                                  bands, n_bands, &
+                                  vtheo, n_vtheo, vtheo_convolved, n_vtheo_convolved, &
+                                  Pk_mm, n_Pk_mm, Pk_gm, n_Pk_gm, Pk_gg, n_Pk_gg, &
+                                  verbose) bind(c, name="compute_wedges")
+            type(c_ptr), value               :: config_ptr
+            
+            real(kind=c_double), intent(in)  :: b1, b2, gamma2, gamma3, a_vir, gamma
+
+            integer(kind=c_int), intent(in)  :: z_index
+
+            integer(kind=c_int), intent(in)  :: n_H_z, n_DA_z
+            real(kind=c_double), intent(in)  :: H_z(n_H_z), DA_z(n_DA_z)
+
+            integer(kind=c_int), intent(in)  :: n_bands
+            real(kind=c_double), intent(in)  :: bands(n_bands)
+
+            integer(kind=c_int), intent(in)  :: n_vtheo, n_vtheo_convolved
+            real(kind=c_double), intent(inout) :: vtheo(n_vtheo), vtheo_convolved(n_vtheo_convolved)
+
+            integer(kind=c_int), intent(in)  :: n_Pk_mm, n_Pk_gm, n_Pk_gg
+            real(kind=c_double), intent(inout) :: Pk_mm(n_Pk_mm), Pk_gm(n_Pk_gm), Pk_gg(n_Pk_gg)
+
+            integer(kind=c_int), intent(in)  :: verbose
+
+            !Variables
+            type(wedges_config), pointer              :: config
+            real(mcp), dimension(6)                   :: DataParams
+
+            integer                                   :: i
+
+            call c_f_pointer(config_ptr, config)
+
+            DataParams(1) = b1
+            DataParams(2) = b2
+            DataParams(3) = gamma2
+            DataParams(4) = gamma3
+            DataParams(5) = a_vir
+            DataParams(6) = gamma
 
             if(n_H_z /= n_DA_z) then
                 stop "Sizes of H_z and DA_z do not match."
@@ -96,100 +235,27 @@ module bias_module
                 write(*,*) "DA at z_index", Theory%derived_parameters(nthermo_derived+(z_index-2)*npar_atz+3)
             end if
 
-            !Set dataset params
-            dataset%twopt_type = twopt_type
-            dataset%nsize%num_ell = num_ell
-            dataset%nsize%num_points_use = num_points_use
-            dataset%nsize%num_bands_use = num_bands_use
-            dataset%zm = real(zm, kind=mcp)
-            dataset%om_fid = real(om_fid, kind=mcp)
-            dataset%h0_fid = real(h0_fid, kind=mcp)
-    
-            allocate(dataset%window, source=window)
-            
-            if(n_Pk_z /= n_Pk_y) then
-                stop "Size of z array and second dimension of Pk do not match."
-            else if(n_Pk_log_k /= n_Pk_x) then
-                stop "Size of k array and first dimension of Pk do not match."
-            else if(n_Pk_x /= size(Pk, dim=1)) then
-                stop "n_Px_x and first dimension of Pk do not match."
-            end if
-            ! allocate(z(n_Pk_z), source=Pk_z)
-            ! allocate(log_k(n_Pk_log_k), source=Pk_log_k)
-
-            !set power spectrum (see CAMBCalc_SetDerived)
-            ! call Theory%FreePK()
-            allocate(Theory%MPK)
-            call Theory%MPK%Init(Pk_log_k, Pk_z, Pk)
-
-            if(verbose > 0) then
-                write(*,*) "z: ", Pk_z
-                write(*,*) "log_k: ", Pk_log_k(:4)
-                write(*,*) "Pk: ", Pk(:,1)
-                write(*,*) Pk_log_k(1), exp(Pk_log_k(1)), Pk_z(1)
-                write(*,*) Theory%MPK%PowerAt(exp(Pk_log_k(1)), Pk_z(1)), log(Theory%MPK%PowerAt(exp(Pk_log_k(1)), Pk_z(1)))
-            end if
-
-            if(n_Pk_z /= n_growth_z) then
-                stop "Size of z array and growth array do not match."
-            else if(n_Pk_z /= n_sigma8_z) then
-                stop "Size of z array and sigma8 array do not match."
-            end if
-
-            allocate(Theory%growth_z)
-            call Theory%growth_z%Clear()
-            Theory%growth_z%n = n_Pk_z
-            allocate(Theory%growth_z%x, source=Pk_z)
-            allocate(Theory%growth_z%F, source=growth_z)
-
-            allocate(Theory%sigma8_z)
-            call Theory%sigma8_z%Clear()
-            Theory%sigma8_z%n = n_Pk_z
-            allocate(Theory%sigma8_z%x, source=Pk_z)
-            allocate(Theory%sigma8_z%F, source=sigma8_z)
-
-            allocate(DataParams(6))
-            DataParams(1) = b1
-            DataParams(2) = b2
-            DataParams(3) = gamma2
-            DataParams(4) = gamma3
-            DataParams(5) = a_vir
-            DataParams(6) = gamma
-
-            ! CosmoSettings (need to set z_outputs?)
-            CosmoSettings%use_growth = use_growth
-            CosmoSettings%local_lag_g2 = local_lag_g2
-            CosmoSettings%local_lag_g3 = local_lag_g3
-
-            if(verbose > 0) then
-                feedback = 2
-            else
-                feedback = 0
-            endif
-
-            if(verbose > 0) write(*,*) "Calling init_model."
-            call init_model(model, dataset)
-            if(verbose > 0) write(*,*) "Calling get_model."
-
-            if(n_vtheo /= num_bands_use*num_ell) then
+            if(n_vtheo /= config%dataset%nsize%num_bands_use * config%dataset%nsize%num_ell) then
                 stop "Size of vtheo array doesn't match"
             end if
-            call get_model(model, z_index, bands, vtheo, CMB, Theory, DataParams)
             
-            if(n_vtheo_convolved /= num_points_use*num_ell) then
+            if(verbose > 0) write(*,*) "Calling get_model."
+            call get_model(config%model, z_index, bands, vtheo, CMB, Theory, DataParams)
+            
+            if(n_vtheo_convolved /= config%dataset%nsize%num_points_use * config%dataset%nsize%num_ell) then
                 stop "Size of vtheo_convolved array doesn't match"
             end if
-            call dataset%convolve(vtheo, vtheo_convolved)
+            call config%dataset%convolve(vtheo, vtheo_convolved)
 
-            if(n_Pk_mm /= n_Pk_log_k .or. n_Pk_gm /= n_Pk_log_k .or. n_Pk_gg /= n_Pk_log_k) then
+            if(n_Pk_mm /= Theory%MPK%nx .or. n_Pk_gm /= n_Pk_mm .or. n_Pk_gg /= n_Pk_mm) then
                 stop "Size of output power spectrum and input k array do not match."
             end if
 
             if(verbose > 0) write(*,*) "Getting power spectra."
-            do i=1,n_Pk_log_k
-                Pk_mm(i) = gRPT_Pdd(exp(Pk_log_k(i)))
-                Pk_gm(i) = gRPT_Pgd(exp(Pk_log_k(i)))
-                Pk_gg(i) = gRPT_Pgg(exp(Pk_log_k(i)))
+            do i=1,n_Pk_mm
+                Pk_mm(i) = gRPT_Pdd(exp(Theory%MPK%x(i)))
+                Pk_gm(i) = gRPT_Pgd(exp(Theory%MPK%x(i)))
+                Pk_gg(i) = gRPT_Pgg(exp(Theory%MPK%x(i)))
             end do
 
         end subroutine compute_wedges
