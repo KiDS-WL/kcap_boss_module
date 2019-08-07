@@ -59,6 +59,12 @@ class BiasModule:
         f.argtypes = [ct.c_void_p]
         f(config_ptr)
 
+    def cleanup_cosmology(self):
+        f = self.get_function("cleanup_cosmology")
+        f.restype = None
+        f.argtypes = None
+        f()
+
     def setup_cosmology(self, h, omdm, omb, omv, omk, omnuh2, nnu, w, wa,
                               use_growth, local_lag_g2, local_lag_g3, 
                               z, log_k, Pk, 
@@ -215,6 +221,7 @@ if __name__ == "__main__":
                              )
 
     mod.cleanup_wedges(config_ptr)
+    mod.cleanup_cosmology()
 
     np.savetxt("../output/vtheo_python.txt", vtheo)
     np.savetxt("../output/vtheo_convolved_python.txt", vtheo_convolved)

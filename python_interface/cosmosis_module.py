@@ -220,3 +220,5 @@ def execute(block, config):
 def cleanup(config):
     for c in config["wedges_config"]:
         config["module"].cleanup_wedges(c)
+    
+    config["module"].cleanup_cosmology()

@@ -78,20 +78,28 @@ module bias_module
             type(wedges_config), pointer  :: config
 
             call c_f_pointer(config_ptr, config)
-            deallocate(config%dataset%window)
+            if(allocated(config%dataset%window)) deallocate(config%dataset%window)
             deallocate(config)
+        end subroutine cleanup_wedges
 
-            call Theory%MPK%Clear()
-            deallocate(Theory%MPK)
-            call Theory%growth_z%Clear()
-            deallocate(Theory%growth_z)
-            call Theory%sigma8_z%Clear()
-            deallocate(Theory%sigma8_z)
+        subroutine cleanup_cosmology() bind(c, name="cleanup_cosmology")
+            if(allocated(Theory%MPK)) then
+                call Theory%MPK%Clear()
+                deallocate(Theory%MPK)
+            end if
+            if(allocated(Theory%growth_z)) then
+                call Theory%growth_z%Clear()
+                deallocate(Theory%growth_z)
+            endif
+            if(allocated(Theory%sigma8_z)) then
+                call Theory%sigma8_z%Clear()
+                deallocate(Theory%sigma8_z)
+            end if
 
             NLRSD_redshift = 0.0
             tot_NLRSD_redshift = 0.0
             num_NLRSD_redshift = 0.0
-        end subroutine cleanup_wedges
+        end subroutine cleanup_cosmology
 
         subroutine setup_cosmology(h, omdm, omb, omv, omk, omnuh2, nnu, w, wa, & !CMB params
                                    use_growth, local_lag_g2, local_lag_g3, &
