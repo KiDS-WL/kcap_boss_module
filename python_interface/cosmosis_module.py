@@ -196,24 +196,19 @@ def execute(block, config):
     block[config["output_section_pk_gg"], "p_k"] = Pk_gg_pt
 
     if config["compute_lss_parameters"]:
-        z = block["distances", "z"]
-        D_m = block["distances", "d_m"]
-        H = block["distances", "h"]
-        r_d = block["distances", "rs_zdrag"]
+        z = block[names.growth_parameters, "z"]
+        fsigma_8 = block[names.growth_parameters, "fsigma_8"]
+        F_AP = block[names.growth_parameters, "F_AP"]
+        rs_DV = block[names.growth_parameters, "rs_DV"]
 
         for i, zm in enumerate(config["zm"]):
             b = i + 1
 
             z_index = np.argmin(np.abs(z-zm))
-            D_v = ((D_m**2 *z/H)**(1/3))[z_index]
-            F_AP = (D_m*H)[z_index]
-
-            z_index = np.argmin(np.abs(z_growth-zm))
-            f_sigma_8 = growth[z_index]
             
-            block["lss_parameters", f"d_v_over_r_d_bin_{b}"] = D_v/r_d
-            block["lss_parameters", f"F_AP_bin_{b}"] = F_AP
-            block["lss_parameters", f"f_sigma_8_bin_{b}"] = f_sigma_8
+            block["lss_parameters", f"rs_DV_bin_{b}"] = rs_DV[z_index]
+            block["lss_parameters", f"F_AP_bin_{b}"] = F_AP[z_index]
+            block["lss_parameters", f"fsigma_8_bin_{b}"] = fsigma_8[z_index]
 
     return 0
 
