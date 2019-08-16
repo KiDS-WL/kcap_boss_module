@@ -197,18 +197,18 @@ def execute(block, config):
 
     if config["compute_lss_parameters"]:
         z = block[names.growth_parameters, "z"]
-        fsigma_8 = block[names.growth_parameters, "fsigma_8"]
-        F_AP = block[names.growth_parameters, "F_AP"]
-        rs_DV = block[names.growth_parameters, "rs_DV"]
+        fsigma_8 = scipy.interpolate.InterpolatedUnivariateSpline(z, block[names.growth_parameters, "fsigma_8"])
+        
+        z_background = block[names.distances, "z"]
+        F_AP = scipy.interpolate.InterpolatedUnivariateSpline(z_background, block[names.distances, "F_AP"])
+        rs_DV = scipy.interpolate.InterpolatedUnivariateSpline(z_background[1:], block[names.distances, "rs_DV"][1:])
 
         for i, zm in enumerate(config["zm"]):
             b = i + 1
 
-            z_index = np.argmin(np.abs(z-zm))
-            
-            block["lss_parameters", f"rs_DV_bin_{b}"] = rs_DV[z_index]
-            block["lss_parameters", f"F_AP_bin_{b}"] = F_AP[z_index]
-            block["lss_parameters", f"fsigma_8_bin_{b}"] = fsigma_8[z_index]
+            block["lss_parameters", f"rs_DV_bin_{b}"] = float(rs_DV(zm))
+            block["lss_parameters", f"F_AP_bin_{b}"] = float(F_AP(zm))
+            block["lss_parameters", f"fsigma_8_bin_{b}"] = float(fsigma_8(zm))
 
     return 0
 
