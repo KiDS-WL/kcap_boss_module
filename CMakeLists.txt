@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.2)
 
 project(BOSS_MODULE LANGUAGES Fortran C CXX VERSION 0.1)
-    if(DEFINED ENV{FC} AND $ENV{FC} MATCHES "^.*ifort$")
+    if((DEFINED ENV{FC}) AND ("$ENV{FC}" MATCHES "^.*ifort$"))
         set(FC $ENV{FC} CACHE STRING "Fortran compiler")
         message("FC set to ${FC}")
     else()
