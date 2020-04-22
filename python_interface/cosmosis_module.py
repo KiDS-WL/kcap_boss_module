@@ -27,11 +27,15 @@ def setup(options):
         bands_range = options[option_section, "bands_range"]
     except errors.BlockNameNotFound:
         bands_range = [20, 160]
+    if len(bands_range) != 2 or not all(np.issubdtype(type(b), np.integer) for b in bands_range):
+        raise ValueError(f"bands_range needs to be two integers, got {bands_range}, {[type(b) for b in bands_range]}")
 
     try:
         points_range = options[option_section, "points_range"]
     except errors.BlockNameNotFound:
         points_range = [4, 32]
+    if len(points_range) != 2 or not all(np.issubdtype(type(b), np.integer) for b in points_range):
+        raise ValueError(f"points_range needs to be two integers, got {points_range}")
     
     n_points, n_bands = config["window"].shape
     
