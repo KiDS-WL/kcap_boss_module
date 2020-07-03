@@ -78,6 +78,8 @@ def setup(options):
     config["local_lag_g2"] = options.get_bool(option_section, "local_lag_g2", True)
     config["local_lag_g3"] = options.get_bool(option_section, "local_lag_g3", False)
 
+    config["no_interpolation"] = options.get_bool(option_section, "no_interpolation", False)
+
     # config["derived_parameters"] = np.loadtxt(os.path.join(here, "../output/derived_params.txt"))
     # config["data_parameters"] = np.loadtxt(os.path.join(here, "../output/data_params.txt"))
 
@@ -175,16 +177,28 @@ def execute(block, config):
         z = block[names.distances, "z"]
         H_z = block[names.distances, "h"]*2.99792458e8/1e3
         DA_z = block[names.distances, "d_a"]
-        z_index = np.argmin(np.abs(z-zm))
 
-        if z_index >= (200-13)//4:
-            # z_index too large to fit H_z and DA_z into derived_parameters array
-            # so we take a range around z[z_index]
-            s = slice(max(0, z_index-4), min(len(z), z_index+4))
-            z = z[s]
-            H_z = H_z[s]
-            DA_z = DA_z[s]
+        if config["no_interpolation"]:
+            # Original implementation taylored to the way the CosmoMC module reads
+            # these parameters. Sensitive to z resolution
             z_index = np.argmin(np.abs(z-zm))
+
+            if z_index >= (200-13)//4:
+                # z_index too large to fit H_z and DA_z into derived_parameters array
+                # so we take a range around z[z_index]
+                s = slice(max(0, z_index-4), min(len(z), z_index+4))
+                z = z[s]
+                H_z = H_z[s]
+                DA_z = DA_z[s]
+                z_index = np.argmin(np.abs(z-zm))
+        else:
+            # More stable and sane.
+            H_z_intp = scipy.interpolate.InterpolatedUnivariateSpline(z, H_z, ext=2)
+            DA_z_intp = scipy.interpolate.InterpolatedUnivariateSpline(z, DA_z, ext=2)
+
+            H_z = np.atleast_1d(H_z_intp(zm))
+            DA_z = np.atleast_1d(DA_z_intp(zm))
+            z_index = 0
 
         # Bias parameters
         b1 = block["bias_parameters", f"b1_bin_{b}"]

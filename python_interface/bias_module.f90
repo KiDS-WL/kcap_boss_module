@@ -226,9 +226,9 @@ module bias_module
             ! Set everything to nan by default so in anything gets accessed that hasn't been set, it will hopefully break
             Theory%derived_parameters = ieee_value(Theory%derived_parameters, ieee_quiet_nan)
 
-            if(z_index > n_H_z) then
+            if(z_index-1 > n_H_z) then
                 stop "z_index larger than available H(z) redshifts"
-            else if(z_index > (max_derived_parameters-nthermo_derived)/npar_atz) then
+            else if(z_index-1 > (max_derived_parameters-nthermo_derived)/npar_atz) then
                 stop "z_index larger than Theroy%derived_parameters array."
             end if
             do i=1,min(n_H_z, (max_derived_parameters-nthermo_derived)/npar_atz)
@@ -236,8 +236,9 @@ module bias_module
                 Theory%derived_parameters(nthermo_derived+(i-1)*npar_atz+3) = DA_z(i)
             end do
             if(verbose > 0) then
-                write(*,*) "H(~z_index): ", H_z(z_index-4:z_index+4)
-                write(*,*) "DA(~z_index): ", DA_z(z_index-4:z_index+4)
+                write(*,*) "n_H_z", n_H_z
+                write(*,*) "H(~z_index): ", H_z(max(1,z_index-4):min(n_H_z, z_index+4))
+                write(*,*) "DA(~z_index): ", DA_z(max(1,z_index-4):min(n_DA_z, z_index+4))
                 write(*,*) "z_index", z_index
                 write(*,*) "H at z_index", Theory%derived_parameters(nthermo_derived+(z_index-2)*npar_atz+2)
                 write(*,*) "DA at z_index", Theory%derived_parameters(nthermo_derived+(z_index-2)*npar_atz+3)
