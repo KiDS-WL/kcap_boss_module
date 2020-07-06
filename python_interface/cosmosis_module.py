@@ -239,8 +239,12 @@ def execute(block, config):
         # os.kill(proc.pid, signal.SIGTERM)
         proc.join(0.5)
         if proc.is_alive():
-            # print("Process is not cooperating. Killing it.")
+            print("Wedges process is not cooperating. Terminating it.", file=sys.stderr, flush=True)
             proc.terminate()
+            proc.join(0.5)
+            if proc.exitcode is None:
+                print("So you have choosen death.", file=sys.stderr, flush=True)
+                proc.kill()
         return 1
 
     proc.join(0.5)
