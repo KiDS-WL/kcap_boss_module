@@ -127,12 +127,13 @@ def run_wedges(q, config,
                                                         verbose=config["verbose"])
         results.append((vtheo, vtheo_convolved, Pk_mm, Pk_gm, Pk_gg))
     
-    q.put(results)
-
     for c in wedges_config:
         module.cleanup_wedges(c)
     
     module.cleanup_cosmology()
+
+    q.put(results)
+
 
 def execute(block, config):
     h = block[names.cosmological_parameters, "h0"]
@@ -243,6 +244,14 @@ def execute(block, config):
         return 1
 
     proc.join(0.5)
+    if proc.is_alive():
+        print("Wedges process is not cooperating. Terminating it.", file=sys.stderr, flush=True)
+        proc.terminate()
+        proc.join(0.5)
+        if proc.exitcode is None:
+            print("So you have choosen death.", file=sys.stderr, flush=True)
+            proc.kill()
+
     proc.close()
 
     # Put the results into the datablock
